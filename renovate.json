@@ -1,0 +1,63 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "schedule:earlyMondays",
+    ":semanticCommits",
+    ":dependencyDashboard",
+    ":separateMajorReleases"
+  ],
+  "labels": ["renovate"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "rangeStrategy": "bump",
+  "pinDigests": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Bump declared Karate image rows. The post-upgrade task re-syncs companion checksums.",
+      "managerFilePatterns": ["/(^|/)images/[^/]+/image\\.env$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+?)(?: depName=(?<depName>\\S+?))?(?: packageName=(?<packageName>\\S+?))?(?: versioning=(?<versioning>[a-z-]+?))?(?: extractVersion=(?<extractVersion>\\S+?))?\\s+KARATE_VERSION=\"(?<currentValue>.+?)\""
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Refresh JRE base image digests used by Karate image rows.",
+      "managerFilePatterns": ["/(^|/)images/[^/]+/image\\.env$/"],
+      "matchStrings": [
+        "# renovate: datasource=docker depName=(?<depName>\\S+?) versioning=(?<versioning>[a-z-]+?)\\s+KARATE_JAVA_IMAGE=\"\\S+?:(?<currentValue>[^\"@]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": false
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "groupName": "docker base images"
+    },
+    {
+      "matchManagers": ["gitlabci", "gitlabci-include"],
+      "groupName": "gitlab-ci"
+    },
+    {
+      "description": "Re-sync the paired checksum and Dockerfile defaults in the same MR (self-hosted Renovate only; the command is allow-listed via RENOVATE_ALLOWED_COMMANDS in the runner).",
+      "matchManagers": ["custom.regex"],
+      "postUpgradeTasks": {
+        "commands": ["bash .gitlab/renovate/sync-tool-sha.sh"],
+        "fileFilters": [
+          ".gitlab-ci.yml",
+          "images/**/image.env",
+          "images/**/Dockerfile",
+          ".gitlab/renovate/sync-tool-sha.sh"
+        ],
+        "executionMode": "branch"
+      }
+    }
+  ]
+}

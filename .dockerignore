@@ -1,0 +1,17 @@
+.git/
+.gitlab-ci.yml
+.gitignore
+.editorconfig
+.dockerignore
+README.md
+LICENSE.md
+SECURITY.md
+CODEOWNERS
+docs/
+assets/
+renovate.json
+.tva
+.gitlab/
+templates/
+skills/
+test/

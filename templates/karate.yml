@@ -1,0 +1,77 @@
+spec:
+  inputs:
+    job_name:
+      default: karate
+      regex: '^[A-Za-z0-9_.:-]+$'
+      description: Job name — override to include the component more than once in one pipeline.
+    stage:
+      default: test
+      regex: '^[A-Za-z0-9_.:-]+$'
+      description: Pipeline stage the test job runs in.
+    feature_path:
+      default: "."
+      regex: '^[^"''\r\n]*$'
+      description: A .feature file, or a directory scanned recursively for .feature files.
+    parallel:
+      default: 1
+      type: number
+      description: Number of features run in parallel (karate -T).
+    tags:
+      default: ""
+      regex: '^[^"''\r\n]*$'
+      description: 'Tag filter (karate -t), e.g. "@smoke,~@wip". Empty runs every scenario.'
+    env:
+      default: ""
+      regex: '^[^"''\r\n]*$'
+      description: karate.env value (karate -e) for per-environment config. Empty leaves it unset.
+    output_dir:
+      default: target
+      regex: '^[^"''\r\n]*$'
+      description: HTML report directory (karate -o).
+    options:
+      default: ""
+      regex: '^[^"''\r\n]*$'
+      description: 'Extra options appended to the karate command, e.g. "-d" for dry-run.'
+    java_tool_options:
+      default: ""
+      regex: '^[^"''\r\n]*$'
+      description: 'JVM tuning via JAVA_TOOL_OPTIONS — heap, GC, system properties (e.g. "-Xmx2g"). Empty leaves the image default.'
+    allow_failure:
+      default: false
+      type: boolean
+      description: Let the pipeline continue when tests fail (otherwise a test failure fails the job).
+    image:
+      default: "registry.gitlab.com/coroboros/infrastructure/karate:2.0.9-temurin21"
+      regex: '^[^"''\r\n]+$'
+      description: 'Full karate image reference. The default tag tracks the current Karate/JRE pair; for reproducible, tamper-evident builds pin a manifest-list digest (...@sha256:...) and let Renovate bump it — see the README Provenance section.'
+---
+"$[[ inputs.job_name ]]":
+  stage: $[[ inputs.stage ]]
+  image:
+    name: $[[ inputs.image ]]
+    entrypoint: [""]
+  interruptible: true
+  allow_failure: $[[ inputs.allow_failure ]]
+  variables:
+    KARATE_FEATURE_PATH: "$[[ inputs.feature_path ]]"
+    KARATE_PARALLEL: "$[[ inputs.parallel ]]"
+    KARATE_TAGS: "$[[ inputs.tags ]]"
+    KARATE_ENV: "$[[ inputs.env ]]"
+    KARATE_OUTPUT_DIR: "$[[ inputs.output_dir ]]"
+    KARATE_OPTIONS: "$[[ inputs.options ]]"
+    JAVA_TOOL_OPTIONS: "$[[ inputs.java_tool_options ]]"
+  script:
+    - |-
+      set -eu
+      args="-T ${KARATE_PARALLEL} -o ${KARATE_OUTPUT_DIR}"
+      tags="${KARATE_TAGS}"
+      karate_env="${KARATE_ENV}"
+      extra="${KARATE_OPTIONS}"
+      if [ -n "${tags}" ]; then args="${args} -t ${tags}"; fi
+      if [ -n "${karate_env}" ]; then args="${args} -e ${karate_env}"; fi
+      # shellcheck disable=SC2086
+      karate ${args} ${extra} "${KARATE_FEATURE_PATH}"
+  artifacts:
+    when: always
+    paths:
+      - $KARATE_OUTPUT_DIR/

@@ -1,0 +1,49 @@
+include:
+  - project: 'coroboros/ci'
+    file: 'infrastructure/container-images/matrix.gitlab-ci.yml'
+    ref: main
+
+variables:
+  IMAGE_PUBLIC_REGISTRIES: "ghcr,docker"
+  RELEASE_VERSION_PIN_DEFAULTS: ""
+  RELEASE_VERSION_PIN_FILES: "README.md"
+
+.container-image-variants:
+  parallel:
+    matrix:
+      - IMAGE_REF_TAG: ["2.0.9-temurin21"]
+        IMAGE_PLATFORM: ["linux/amd64,linux/arm64"]
+
+check-version-sync:
+  image:
+    name: alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+    entrypoint: [""]
+  stage: check
+  script:
+    - apk add --no-cache bash grep
+    - bash test/version-sync.sh
+
+test-image:
+  extends:
+    - .container-image-variants
+    - .base-docker-service
+    - .infrastructure-container-images-matrix-rules
+  stage: post-publish
+  needs:
+    - job: publish-image
+      parallel:
+        matrix:
+          - IMAGE_REF_TAG: ['$[[ matrix.IMAGE_REF_TAG ]]']
+            IMAGE_PLATFORM: ['$[[ matrix.IMAGE_PLATFORM ]]']
+  before_script:
+    - !reference [.infrastructure-container-images-matrix-resolve, script]
+    - docker login -u "${IMAGE_REGISTRY_USER}" -p "${IMAGE_REGISTRY_PASSWORD}" "${IMAGE_REGISTRY}"
+  script:
+    # DinD does not share bind mounts; copy fixtures into the container.
+    - |-
+      set -eu
+      cid=$(docker create "${IMAGE}")
+      docker cp test/features/. "${cid}:/karate/features"
+      docker start -a "${cid}" && code=0 || code=$?
+      docker rm "${cid}" >/dev/null
+      exit "${code}"
