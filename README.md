@@ -206,7 +206,7 @@ Karate writes an HTML report (`karate-summary.html`, per-feature pages, a timeli
 karate ships an agent skill — its own write-and-run guide for Karate feature tests — for coding agents. Install it into an agent:
 
 ```sh
-npx skills add https://gitlab.com/coroboros/infrastructure/karate
+npx skills add coroboros/karate
 ```
 
 Or read it without installing: [`skills/karate/SKILL.md`](skills/karate/SKILL.md).
