@@ -1,3 +1,10 @@
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+      variables:
+        CONTAINER_IMAGE_MATRIX_BUILD_ALL: "true"
+    - when: always
+
 include:
   - project: 'coroboros/ci'
     file: 'infrastructure/container-images/matrix.gitlab-ci.yml'
